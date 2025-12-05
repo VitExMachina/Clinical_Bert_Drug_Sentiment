@@ -35,19 +35,29 @@ The goal was to evaluate which method best captures medical context, subtle emot
 ---
 
 ## ⚙️ Methods & Models
-| Model | Representation | Description |
-|--------|----------------|-------------|
-| **TF-IDF + Logistic Regression** | 1–2 grams | Linear baseline, interpretable and efficient |
-| **TF-IDF + Linear SVM** | 1–2 grams | Strong classical text classifier, robust to sparse features |
-| **Bio_ClinicalBERT** | Transformer embeddings | Fine-tuned model pretrained on biomedical & clinical text |
+
+### Pipeline Architecture
+**ClinicalBERT Embeddings → PCA → Feedforward ANN → Sentiment Classification**
+
+The main pipeline uses:
+1. **ClinicalBERT Feature Extraction**: Extract [CLS] token embeddings (768-dim) from pre-trained `emilyalsentzer/Bio_ClinicalBERT`
+2. **PCA Dimensionality Reduction**: Reduce embeddings to 50 dimensions while preserving variance
+3. **Feedforward ANN**: 2-layer neural network with ReLU and Dropout for classification
+
+| Component | Description |
+|--------|----------------|
+| **ClinicalBERT Embeddings** | 768-dimensional contextual embeddings from biomedical BERT |
+| **PCA** | Dimensionality reduction (768 → 50 components) |
+| **Feedforward ANN** | 2 hidden layers (64 units each), ReLU activation, Dropout (0.2) |
 
 ### Training Details
 - **Split:** 80/20 train–validation (stratified)
 - **Metrics:** Accuracy, Macro Recall, Macro F1
-- **Optimizer:** AdamW (BERT)
-- **Learning Rate:** 2e-5  
-- **Epochs:** 3  
-- **Batch Size:** 16  
+- **Optimizer:** Adam (ANN)
+- **Learning Rate:** 0.001  
+- **Epochs:** 10  
+- **Batch Size:** 32 (ANN), 16 (BERT embedding extraction)
+- **PCA Components:** 50 (adjustable: 32, 50, 100, etc.)  
 
 ---
 
@@ -99,11 +109,46 @@ drug-sentiment-classification/
 │   ├── drugLibTrain_raw.tsv      # Training data
 │   ├── drugLibTest_raw.tsv       # Test data
 │   └── cleaned_drug_data.csv     # Processed dataset (generated)
-├── Drug_Sentiment_Classification_Git_Final.ipynb  # Main notebook
+├── Drug_Sentiment_Classification_Git_Final.ipynb  # Main notebook (generic)
+├── Drug_Sentiment_Classification_Colab.ipynb      # Google Colab version
+├── Drug_Sentiment_Classification_Metal.ipynb      # Metal GPU (Apple Silicon) version
 ├── requirements.txt               # Python dependencies
 ├── README.md                      # Project overview
 └── .gitignore                     # Git ignore rules
 ```
+
+## 📱 Notebook Versions
+
+### 1. **Drug_Sentiment_Classification_Git_Final.ipynb** (Generic)
+- Standard version for general use
+- Works on CPU, CUDA, or MPS
+- Uses relative paths: `data/`
+
+### 2. **Drug_Sentiment_Classification_Colab.ipynb** (Google Colab)
+- Optimized for Google Colab environment
+- Includes data upload interface
+- Uses `/content/data/` paths
+- Auto-detects Colab GPU (T4, V100, etc.)
+- **Usage:**
+  1. Upload notebook to Google Colab
+  2. Run first cell to upload data files
+  3. Enable GPU: Runtime > Change runtime type > GPU
+  4. Run all cells
+
+### 3. **Drug_Sentiment_Classification_Metal.ipynb** (Apple Silicon)
+- Optimized for Apple Silicon Macs (M1/M2/M3)
+- Uses Metal Performance Shaders (MPS) for GPU acceleration
+- Includes MPS memory management
+- Uses local paths: `data/`
+- **Requirements:**
+  ```bash
+  pip install torch torchvision torchaudio
+  pip install transformers datasets scikit-learn
+  ```
+- **Usage:**
+  1. Ensure PyTorch with MPS support is installed
+  2. Place data files in `./data/` directory
+  3. Run notebook locally with Jupyter
 
 ---
 
@@ -119,18 +164,23 @@ drug-sentiment-classification/
    pip install -r requirements.txt
    ```
 
-3. Run the notebook:
+3. Run the appropriate notebook:
    ```bash
+   # For local execution (CPU/Metal GPU)
+   jupyter notebook Drug_Sentiment_Classification_Metal.ipynb
+   
+   # Or for generic version
    jupyter notebook Drug_Sentiment_Classification_Git_Final.ipynb
    ```
 
 4. The notebook will:
    - Load data from `data/drugLibTrain_raw.tsv` and `data/drugLibTest_raw.tsv`
    - Clean and preprocess the data
-   - Train baseline models (TF-IDF + LinearSVC, TF-IDF + LogReg)
-   - Fine-tune ClinicalBERT
-   - Generate comparison metrics and confusion matrices
-   - Save model outputs to `bert-drug-sentiment-best/` and `model_performance_comparison.csv`
+   - Extract ClinicalBERT embeddings (768-dim)
+   - Apply PCA dimensionality reduction (50 components)
+   - Train feedforward ANN classifier
+   - Generate classification report and confusion matrix
+   - Save results to `model_performance_comparison.csv`
 
 ---
 
